@@ -3,7 +3,7 @@
 {
   home = {
     packages = with pkgs; [
-      hello
+      cowsay lolcat
     ];
     username = "wizheng";
     homeDirectory = "/home/wizheng";

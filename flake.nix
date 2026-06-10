@@ -20,7 +20,7 @@
     in {
       homeConfigurations = {
         nix-wizheng = home-manager.lib.homeManagerConfiguration {
-          inherit pkgs; 
+          inherit pkgs;
           modules = [ ./home.nix ];
         };
       };
