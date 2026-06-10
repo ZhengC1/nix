@@ -19,7 +19,7 @@
       pkgs = import nixpkgs { inherit system; };
     in {
       homeConfigurations = {
-        nix-wizheng = home-manager.lib.homeManagerConfiguration {
+        wizheng = home-manager.lib.homeManagerConfiguration {
           inherit pkgs;
           modules = [ ./home.nix ];
         };

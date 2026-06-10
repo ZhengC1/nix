@@ -3,12 +3,11 @@
 {
   home = {
     packages = with pkgs; [
-      cowsay lolcat
+      cowsay lolcat homemanager
     ];
     username = "wizheng";
     homeDirectory = "/home/wizheng";
-    stateVersion = "25.11";
-    programs.home-manager.enable = true;
+    stateVersion = "23.11";
   };
 
 }
