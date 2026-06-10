@@ -1,12 +1,25 @@
 { lib, pkgs, ... }:
 
 {
+    imports = [
+      config/gitconfig.nix
+      config/macos.nix
+      config/programming_lan.nix
+      config/shell_config.nix
+      config/utilities.nix
+    ];
+
+
   home = {
     packages = with pkgs; [
-      cowsay lolcat homemanager
+      cowsay 
+      lolcat 
+      home-manager 
+      pyenv 
+      neovim
     ];
-    username = "wizheng";
     homeDirectory = "/home/wizheng";
+    username = "wizheng";
     stateVersion = "23.11";
   };
 
