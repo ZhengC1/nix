@@ -2,11 +2,7 @@
 
 {
     imports = [
-      config/gitconfig.nix
-      config/macos.nix
-      config/programming_lan.nix
-      config/shell_config.nix
-      config/utilities.nix
+      config/gitconfig.nix 
     ];
 
 
