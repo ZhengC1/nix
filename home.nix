@@ -7,7 +7,7 @@
     ];
     username = "wizheng";
     homeDirectory = "/home/wizheng";
-    stateVersion = "23.11";
+    stateVersion = "25.11";
     programs.home-manager.enable = true;
   };
 
