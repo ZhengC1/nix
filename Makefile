@@ -5,11 +5,24 @@ install:
 	nix-shell '<home-manager>' -A install
 
 .PHONY: update
-update: 
-	home-manager switch --flake .#$(USER)
+update:
+	home-manager switch --flake .#$(USER) -b backup
 
 .PHONY: clean
-clean: 
+clean:
 	nix-collect-garbage -d
+
+.PHONY: deploy
+deploy:
+	@for f in dotfiles/.*; do \
+	  [ -f "$$f" ] || continue; \
+	  cp "$$f" "$(HOME)/"; \
+	  echo "copied $$f -> $(HOME)/"; \
+	done
+	@mkdir -p "$(HOME)/.config/nvim"
+	@rsync -a --exclude='.git' dotfiles/nvim/ "$(HOME)/.config/nvim/"
+	@echo "copied dotfiles/nvim/ -> $(HOME)/.config/nvim/"
+	@echo ""
+	@echo "Done. Run: source ~/.bashrc"
 
 
