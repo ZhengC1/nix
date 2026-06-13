@@ -16,11 +16,13 @@
     let
       lib = nixpkgs.lib;
       system = "x86_64-linux";
+      username = "wizheng";
       pkgs = import nixpkgs { inherit system; };
     in {
       homeConfigurations = {
-        wizheng = home-manager.lib.homeManagerConfiguration {
+        ${username} = home-manager.lib.homeManagerConfiguration {
           inherit pkgs;
+          extraSpecialArgs = { inherit username; };
           modules = [ ./home.nix ];
         };
       };
