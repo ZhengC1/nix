@@ -1,4 +1,4 @@
-{ ... }:
+{ config, lib, ... }:
 
 {
   programs.bash = {
@@ -9,7 +9,7 @@
     historyFileSize = 20000;
 
     shellAliases = {
-      ls    = "ls --color=auto";
+      ls    = if config.home.homeDirectory == "/Users/${config.home.username}" then "ls -G" else "ls --color=auto";
       ll    = "ls -alF";
       la    = "ls -A";
       l     = "ls -CF";

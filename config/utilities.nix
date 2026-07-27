@@ -34,12 +34,4 @@
     hyperfine    # benchmarking
     tokei        # count lines of code
   ];
-
-  home.file."mount.sh" = {
-    executable = true;
-    text = ''
-      #!/usr/bin/env bash
-      mount /dev/md/0 /mnt
-    '';
-  };
 }

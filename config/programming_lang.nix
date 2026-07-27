@@ -6,14 +6,11 @@
   #   Python  → pyenv    Node → nvm    Rust → rustup    Haskell → ghcup
   home.packages = with pkgs; [
     # Python tooling (pyenv manages the interpreter)
-    python311Packages.ipython
     ruff            # fast linter + formatter
     black           # formatter
     pyright         # language server
 
-    # Node/JS tooling (nvm manages node)
-    nodePackages.typescript-language-server
-    nodePackages.prettier
+    # Node/JS tooling (nvm manages node and npm packages)
 
     # Rust tooling (rustup manages the compiler)
     rust-analyzer
@@ -23,9 +20,6 @@
     gopls           # language server
     gotools         # goimports, godoc, etc.
     delve           # debugger
-
-    # Haskell tooling (ghcup manages GHC/cabal/stack)
-    haskellPackages.haskell-language-server
 
     # Lua (used heavily in neovim config)
     lua54Packages.lua

@@ -1,28 +1,42 @@
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+  HM_TARGET := $(USER)-darwin
+else
+  HM_TARGET := $(USER)-linux
+endif
+
+.PHONY: install_nix
+install_nix:
+	curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install | sh
 .PHONY: install
 install:
-	nix-channel --add https://github.com/nix-community/home-manager/archive/release-23.11.tar.gz home-manager
-	nix-channel --update
-	nix-shell '<home-manager>' -A install
+	@mkdir -p ~/.config/nix
+	@echo "experimental-features = nix-command flakes" >> ~/.config/nix/nix.conf 2>/dev/null || true
+	nix run home-manager/release-26.05 -- switch --flake .#$(HM_TARGET) -b backup
 
 .PHONY: update
 update:
-	home-manager switch --flake .#$(USER) -b backup
+	home-manager switch --flake .#$(HM_TARGET) -b backup
 
 .PHONY: clean
 clean:
 	nix-collect-garbage -d
 
+SHELL_RC := $(shell basename $$SHELL)rc
+
 .PHONY: deploy
 deploy:
 	@for f in dotfiles/.*; do \
 	  [ -f "$$f" ] || continue; \
+	  [ "$$f" != "dotfiles/.bashrc" ] && [ "$$f" != "dotfiles/.zshrc" ] || continue; \
 	  cp "$$f" "$(HOME)/"; \
 	  echo "copied $$f -> $(HOME)/"; \
 	done
+	@cp dotfiles/.$(SHELL_RC) "$(HOME)/.$(SHELL_RC)" && echo "copied dotfiles/.$(SHELL_RC) -> $(HOME)/.$(SHELL_RC)" || echo "warning: .$(SHELL_RC) not found"
 	@mkdir -p "$(HOME)/.config/nvim"
 	@rsync -a --exclude='.git' dotfiles/nvim/ "$(HOME)/.config/nvim/"
 	@echo "copied dotfiles/nvim/ -> $(HOME)/.config/nvim/"
 	@echo ""
-	@echo "Done. Run: source ~/.bashrc"
+	@echo "Done. Run: source ~/.$(SHELL_RC)"
 
 
