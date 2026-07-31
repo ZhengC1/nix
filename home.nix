@@ -8,6 +8,7 @@ in
     imports = [
       config/gitconfig.nix
       config/shell_config.nix
+      config/tmux.nix
       config/utilities.nix
       config/programming_lang.nix
     ] ++ lib.optionals isDarwin [
