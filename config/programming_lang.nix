@@ -27,6 +27,7 @@
     lua-language-server
 
     # Build & misc
+    d2              # diagram scripting language
     gnumake
     cmake
   ];

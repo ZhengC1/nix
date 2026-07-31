@@ -20,6 +20,11 @@ alias ...='cd ../..'
 export EDITOR='nvim'
 export VISUAL='nvim'
 
+# Nix
+if [ -d "$HOME/.nix-profile/bin" ]; then
+  export PATH="$HOME/.nix-profile/bin:$PATH"
+fi
+
 # Auto-attach to tmux if not already inside a session
 if command -v tmux &>/dev/null && [ -n "$PS1" ] && \
    [[ ! "$TERM" =~ screen ]] && [[ ! "$TERM" =~ tmux ]] && \

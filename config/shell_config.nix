@@ -38,9 +38,12 @@
   programs.zsh = {
     enable = true;
 
-    historyControl = [ "ignoredups" "ignorespace" ];
-    historySize = 10000;
-    historySaveSize = 20000;
+    history = {
+      size = 10000;
+      save = 20000;
+      ignoreDups = true;
+      ignoreSpace = true;
+    };
 
     shellAliases = {
       ls    = if config.home.homeDirectory == "/Users/${config.home.username}" then "ls -G" else "ls --color=auto";
