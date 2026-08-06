@@ -15,7 +15,11 @@
   outputs = { nixpkgs, home-manager, ... }:
     let
       lib = nixpkgs.lib;
-      username = "chunz";
+      # Resolved from $USER so the same flake works on any machine (requires
+      # --impure, which the Makefile passes). Falls back to "chunz" for pure
+      # evaluation, e.g. `nix flake check`.
+      envUser = builtins.getEnv "USER";
+      username = if envUser != "" then envUser else "chunz";
       systems = {
         darwin = "aarch64-darwin";
         linux = "x86_64-linux";

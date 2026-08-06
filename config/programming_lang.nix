@@ -55,7 +55,9 @@
     export PATH="$PATH:$GOPATH/bin"
   '';
 
-  programs.zsh.initExtra = ''
+  # initExtra is deprecated in favour of initContent; both are line-merged, so
+  # this composes with the definition in shell_config.nix.
+  programs.zsh.initContent = ''
     # pyenv
     export PYENV_ROOT="$HOME/.pyenv"
     export PATH="$PYENV_ROOT/bin:$PATH"

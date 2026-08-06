@@ -11,6 +11,7 @@ in
       config/tmux.nix
       config/utilities.nix
       config/programming_lang.nix
+      config/neovim.nix
     ] ++ lib.optionals isDarwin [
       config/macos.nix
     ] ++ lib.optionals isLinux [
@@ -23,7 +24,6 @@ in
       lolcat
       home-manager
       pyenv
-      neovim
     ];
     homeDirectory = if isDarwin then "/Users/${username}" else "/home/${username}";
     username = username;

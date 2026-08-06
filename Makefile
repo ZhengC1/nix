@@ -1,56 +1,58 @@
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
-  HM_TARGET := $(USER)-darwin
+  HM_OS := darwin
 else
-  HM_TARGET := $(USER)-linux
+  HM_OS := linux
 endif
 
-NIX_BIN := $(shell command -v nix 2>/dev/null || find /nix/store -name nix -type f -path "*/bin/nix" 2>/dev/null | head -1)
-NIX_BIN_DIR := $(shell find /nix/store -name nix -type f -path "*/bin/nix" 2>/dev/null | head -1 | xargs dirname)
+# The flake resolves its username from $USER (see flake.nix), so the target
+# name and the evaluated config must agree. Override with `make home HM_USER=x`.
+HM_USER ?= $(shell echo $${USER:-$$(id -un)})
+HM_TARGET := $(HM_USER)-$(HM_OS)
+
+NIX_FLAGS := --extra-experimental-features 'nix-command flakes'
+
+# Nix may have been installed by an earlier target in this same run, so its
+# profile has to be sourced at recipe time rather than at parse time.
+NIX_ENV := if [ -e "$$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then . "$$HOME/.nix-profile/etc/profile.d/nix.sh"; fi; \
+	if [ -e /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ]; then . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh; fi; \
+	export PATH="$$HOME/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$$PATH"; \
+	command -v nix >/dev/null 2>&1 || { echo "error: nix not on PATH. Run 'make install', then open a new shell."; exit 1; }
 
 .PHONY: install_nix
 install_nix:
-	curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install | sh
+	@if command -v nix >/dev/null 2>&1 || [ -e "$$HOME/.nix-profile/bin/nix" ]; then \
+	  echo "✓ Nix already installed, skipping."; \
+	else \
+	  curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install | sh; \
+	fi
 
 .PHONY: install
 install: install_nix
-	@mkdir -p ~/.config/nix
-	@echo "experimental-features = nix-command flakes" >> ~/.config/nix/nix.conf 2>/dev/null || true
+	@mkdir -p "$$HOME/.config/nix"
+	@touch "$$HOME/.config/nix/nix.conf"
+	@grep -q '^experimental-features' "$$HOME/.config/nix/nix.conf" \
+	  || echo "experimental-features = nix-command flakes" >> "$$HOME/.config/nix/nix.conf"
 	@echo ""
 	@echo "✓ Nix installed! Close this terminal and open a new one, then run:"
-	@echo "  make setup-home"
+	@echo "  make home"
 
+# Bootstraps home-manager: builds the activation package straight from the
+# flake (using the home-manager pinned in flake.lock) and activates it, so no
+# home-manager CLI needs to exist beforehand. home.nix installs the CLI itself.
 .PHONY: home
 home:
-	@echo "Setting up home-manager..."
-	@export PATH="$$HOME/.nix-profile/bin:$(NIX_BIN_DIR):$$PATH" && $$HOME/.nix-profile/bin/home-manager switch --flake .#$(HM_TARGET) -b backup
-	@echo ""
-	@echo "✓ Home manager configured! Reloading shell..."
-	@exec $$SHELL
+	@echo "Activating home-manager config: $(HM_TARGET)"
+	@$(NIX_ENV); \
+	out=$$(USER="$(HM_USER)" nix $(NIX_FLAGS) build --impure --no-link --print-out-paths \
+	       ".#homeConfigurations.$(HM_TARGET).activationPackage") \
+	  && HOME_MANAGER_BACKUP_EXT=backup "$$out/activate" \
+	  && echo "" \
+	  && echo "✓ Home manager configured! Start a new shell (or: exec \$$SHELL)."
 
 .PHONY: update
-update:
-	home-manager switch --flake .#$(HM_TARGET) -b backup
+update: home
 
 .PHONY: clean
 clean:
-	nix-collect-garbage -d
-
-SHELL_RC := $(shell basename $$SHELL)rc
-
-.PHONY: deploy
-deploy:
-	@for f in dotfiles/.*; do \
-	  [ -f "$$f" ] || continue; \
-	  [ "$$f" != "dotfiles/.bashrc" ] && [ "$$f" != "dotfiles/.zshrc" ] || continue; \
-	  cp "$$f" "$(HOME)/"; \
-	  echo "copied $$f -> $(HOME)/"; \
-	done
-	@cp dotfiles/.$(SHELL_RC) "$(HOME)/.$(SHELL_RC)" && echo "copied dotfiles/.$(SHELL_RC) -> $(HOME)/.$(SHELL_RC)" || echo "warning: .$(SHELL_RC) not found"
-	@mkdir -p "$(HOME)/.config/nvim"
-	@rsync -a --exclude='.git' dotfiles/nvim/ "$(HOME)/.config/nvim/"
-	@echo "copied dotfiles/nvim/ -> $(HOME)/.config/nvim/"
-	@echo ""
-	@echo "Done. Run: source ~/.$(SHELL_RC)"
-
-
+	@$(NIX_ENV); nix-collect-garbage -d

@@ -25,6 +25,21 @@
       VISUAL = "nvim";
     };
 
+    # home-manager owns ~/.profile, which drops the line the Nix installer put
+    # there to source nix.sh — and bash only reads ~/.profile for login shells
+    # anyway, so a plain terminal never got ~/.nix-profile/bin on PATH.
+    # bashrcExtra lands at the top of ~/.bashrc, ahead of the tmux exec below.
+    bashrcExtra = ''
+      case ":$PATH:" in
+        *":$HOME/.nix-profile/bin:"*) ;;
+        *)
+          if [ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
+            . "$HOME/.nix-profile/etc/profile.d/nix.sh"
+          fi
+          ;;
+      esac
+    '';
+
     initExtra = ''
       # Auto-attach to tmux if not already inside a session
       if command -v tmux &>/dev/null && [ -n "$PS1" ] && \
@@ -62,7 +77,20 @@
       VISUAL = "nvim";
     };
 
-    initExtra = ''
+    # Same PATH fix as bash; .zshenv is read by every zsh, login or not.
+    envExtra = ''
+      case ":$PATH:" in
+        *":$HOME/.nix-profile/bin:"*) ;;
+        *)
+          if [ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
+            emulate sh -c '. "$HOME/.nix-profile/etc/profile.d/nix.sh"'
+          fi
+          ;;
+      esac
+    '';
+
+    # initExtra is deprecated in favour of initContent.
+    initContent = ''
       # Auto-attach to tmux if not already inside a session
       if command -v tmux &>/dev/null && [ -n "$PS1" ] && \
          [[ ! "$TERM" =~ screen ]] && [[ ! "$TERM" =~ tmux ]] && \

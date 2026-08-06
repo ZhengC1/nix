@@ -221,16 +221,23 @@ Remove old generations:
 make clean
 ```
 
-### Deploy Dotfiles
+### Dotfiles
 
-Copy dotfiles to home directory (optional):
-```bash
-make deploy
-```
+There is no separate deploy step. Everything under `dotfiles/` is applied by
+`make home` through home-manager:
 
-This copies:
-- Dotfiles from `dotfiles/.*`
-- Neovim config from `dotfiles/nvim/` to `~/.config/nvim/`
+- `dotfiles/.tmux.conf` → `~/.tmux.conf` (`config/tmux.nix`)
+- `dotfiles/nvim/` → `~/.config/nvim/` (`config/neovim.nix`)
+
+Shell and git configuration are generated from `config/shell_config.nix` and
+`config/gitconfig.nix` rather than copied from a checked-in dotfile, so
+`~/.bashrc`, `~/.zshrc`, and `~/.config/git/config` are home-manager symlinks.
+Editing those files in `$HOME` has no effect — change the Nix module and re-run
+`make home`.
+
+`~/.config/nvim/lazy-lock.json` is the one exception: it is seeded on first
+activation and then left writable so `:Lazy update` works. Copy it back into
+`dotfiles/nvim/` to re-pin plugin versions.
 
 ## Directory Structure
 
@@ -246,10 +253,12 @@ This copies:
 │   ├── programming_lang.nix  # Language tooling
 │   ├── utilities.nix         # Utility packages
 │   ├── macos.nix             # macOS-specific (empty)
-│   └── neovim.nix            # Neovim config (empty)
+│   ├── linux.nix             # Linux-specific
+│   ├── tmux.nix              # tmux + tpm
+│   └── neovim.nix            # Neovim package + config deployment
 └── dotfiles/
-    ├── nvim/                 # Neovim configuration
-    └── .*                    # Shell configuration files
+    ├── nvim/                 # Neovim configuration (linked by neovim.nix)
+    └── .tmux.conf            # tmux configuration (linked by tmux.nix)
 ```
 
 ## Troubleshooting
