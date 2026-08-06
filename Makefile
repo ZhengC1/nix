@@ -50,9 +50,6 @@ home:
 	  && echo "" \
 	  && echo "✓ Home manager configured! Start a new shell (or: exec \$$SHELL)."
 
-.PHONY: update
-update: home
-
 .PHONY: clean
 clean:
 	@$(NIX_ENV); nix-collect-garbage -d

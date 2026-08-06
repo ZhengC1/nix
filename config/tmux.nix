@@ -1,11 +1,12 @@
 { pkgs, config, ... }:
 
 {
-  programs.tmux = {
-    enable = true;
-  };
-
-  # Install tmux
+  # NOTE: programs.tmux is deliberately left off. Enabling it generates
+  # ~/.config/tmux/tmux.conf from home-manager's own defaults, which tmux
+  # sources *after* ~/.tmux.conf and which therefore silently overrides
+  # anything set in dotfiles/.tmux.conf (mouse, default-terminal, escape-time,
+  # base-index, mode-keys, ...). Installing the package directly keeps
+  # dotfiles/.tmux.conf the single source of truth.
   home.packages = with pkgs; [
     tmux
   ];
