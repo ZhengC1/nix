@@ -20,8 +20,14 @@
         darwin = "aarch64-darwin";
         linux = "x86_64-linux";
       };
+      # Unfree packages must be opted into by name.
+      allowedUnfree = [ "claude-code" ];
       mkHome = system: home-manager.lib.homeManagerConfiguration {
-        pkgs = import nixpkgs { inherit system; };
+        pkgs = import nixpkgs {
+          inherit system;
+          config.allowUnfreePredicate = pkg:
+            builtins.elem (lib.getName pkg) allowedUnfree;
+        };
         extraSpecialArgs = { inherit username system; };
         modules = [ ./home.nix ];
       };

@@ -20,8 +20,8 @@ install: install_nix
 	@echo "✓ Nix installed! Close this terminal and open a new one, then run:"
 	@echo "  make setup-home"
 
-.PHONY: setup-home
-setup-home:
+.PHONY: home
+home:
 	@echo "Setting up home-manager..."
 	@export PATH="$$HOME/.nix-profile/bin:$(NIX_BIN_DIR):$$PATH" && $$HOME/.nix-profile/bin/home-manager switch --flake .#$(HM_TARGET) -b backup
 	@echo ""

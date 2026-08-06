@@ -31,6 +31,7 @@
     # Misc dev utilities
     tmux
     gh           # GitHub CLI
+    claude-code  # Claude Code CLI
     hyperfine    # benchmarking
     tokei        # count lines of code
   ];
