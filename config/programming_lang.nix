@@ -56,6 +56,10 @@
     # Go
     export GOPATH="$HOME/go"
     export PATH="$PATH:$GOPATH/bin"
+
+    # .NET — the nix dotnet-sdk is a wrapper; the C# tooling needs DOTNET_ROOT
+    # to find the SDK/runtime under the profile.
+    export DOTNET_ROOT="$HOME/.nix-profile/share/dotnet"
   '';
 
   # initExtra is deprecated in favour of initContent; both are line-merged, so
@@ -81,5 +85,9 @@
     # Go
     export GOPATH="$HOME/go"
     export PATH="$PATH:$GOPATH/bin"
+
+    # .NET — the nix dotnet-sdk is a wrapper; the C# tooling needs DOTNET_ROOT
+    # to find the SDK/runtime under the profile.
+    export DOTNET_ROOT="$HOME/.nix-profile/share/dotnet"
   '';
 }
