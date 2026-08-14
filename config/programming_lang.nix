@@ -26,6 +26,9 @@
     luarocks
     lua-language-server
 
+    # .NET (SDK includes the runtime, MSBuild, and dotnet CLI)
+    dotnet-sdk_10
+
     # Build & misc
     d2              # diagram scripting language
     gnumake
