@@ -12,6 +12,7 @@ in
       config/utilities.nix
       config/programming_lang.nix
       config/neovim.nix
+      config/claude.nix
     ] ++ lib.optionals isDarwin [
       config/macos.nix
     ] ++ lib.optionals isLinux [

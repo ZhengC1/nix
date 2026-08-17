@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, config, ... }:
 
 {
   # Language tooling managed by nix (formatters, linters, LSPs, build tools).
@@ -27,13 +27,25 @@
     lua-language-server
 
     # .NET (SDK includes the runtime, MSBuild, and dotnet CLI)
-    dotnet-sdk_10
+    dotnet-sdk_9
 
     # Build & misc
     d2              # diagram scripting language
     gnumake
     cmake
   ];
+
+  # Bootstrap nvm (Node version manager) into ~/.nvm, checking out its latest
+  # release tag. Like tpm, nvm owns the Node runtime and lives outside Nix; this
+  # just clones it idempotently so the shell init below has something to source.
+  home.activation.installNvm = config.lib.dag.entryAfter [ "writeBoundary" ] ''
+    if [ ! -d "$HOME/.nvm" ]; then
+      ${pkgs.git}/bin/git clone https://github.com/nvm-sh/nvm.git "$HOME/.nvm"
+      export PATH="${pkgs.git}/bin:$PATH"
+      ${pkgs.git}/bin/git -C "$HOME/.nvm" checkout \
+        "$(${pkgs.git}/bin/git -C "$HOME/.nvm" describe --abbrev=0 --tags --match "v[0-9]*" "$(${pkgs.git}/bin/git -C "$HOME/.nvm" rev-list --tags --max-count=1)")"
+    fi
+  '';
 
   programs.bash.initExtra = ''
     # pyenv

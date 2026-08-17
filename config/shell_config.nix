@@ -38,6 +38,12 @@
           fi
           ;;
       esac
+
+      # Put Homebrew on PATH (Apple Silicon /opt/homebrew, Intel /usr/local).
+      for _brew in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+        if [ -x "$_brew" ]; then eval "$("$_brew" shellenv)"; break; fi
+      done
+      unset _brew
     '';
 
     initExtra = ''
@@ -91,6 +97,12 @@
           fi
           ;;
       esac
+
+      # Put Homebrew on PATH (Apple Silicon /opt/homebrew, Intel /usr/local).
+      for _brew in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+        if [ -x "$_brew" ]; then eval "$("$_brew" shellenv)"; break; fi
+      done
+      unset _brew
     '';
 
     # initExtra is deprecated in favour of initContent.
