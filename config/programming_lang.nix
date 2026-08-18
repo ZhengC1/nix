@@ -28,6 +28,7 @@
 
     # .NET (SDK includes the runtime, MSBuild, and dotnet CLI)
     dotnet-sdk_9
+    csharprepl      # C# REPL
 
     # Build & misc
     d2              # diagram scripting language
