@@ -46,5 +46,8 @@
     docker-client   # `docker` CLI only (dockerd is Linux-only; use podman's VM)
     docker-compose  # `docker compose` plugin
     podman          # rootless container engine + `podman machine` VM on macOS
+
+    # Infrastructure as code
+    terraform       # unfree (BUSL) — whitelisted in flake.nix's allowedUnfree
   ];
 }

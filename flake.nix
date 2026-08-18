@@ -25,7 +25,7 @@
         linux = "x86_64-linux";
       };
       # Unfree packages must be opted into by name.
-      allowedUnfree = [ "claude-code" ];
+      allowedUnfree = [ "claude-code" "terraform" ];
       mkHome = system: home-manager.lib.homeManagerConfiguration {
         pkgs = import nixpkgs {
           inherit system;

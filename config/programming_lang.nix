@@ -72,6 +72,8 @@
     # .NET — the nix dotnet-sdk is a wrapper; the C# tooling needs DOTNET_ROOT
     # to find the SDK/runtime under the profile.
     export DOTNET_ROOT="$HOME/.nix-profile/share/dotnet"
+    # .NET global tools (dotnet-ef, etc.) install under ~/.dotnet/tools.
+    export PATH="$PATH:$HOME/.dotnet/tools"
   '';
 
   # initExtra is deprecated in favour of initContent; both are line-merged, so
@@ -101,5 +103,7 @@
     # .NET — the nix dotnet-sdk is a wrapper; the C# tooling needs DOTNET_ROOT
     # to find the SDK/runtime under the profile.
     export DOTNET_ROOT="$HOME/.nix-profile/share/dotnet"
+    # .NET global tools (dotnet-ef, etc.) install under ~/.dotnet/tools.
+    export PATH="$PATH:$HOME/.dotnet/tools"
   '';
 }
