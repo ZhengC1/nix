@@ -10,6 +10,13 @@ let
     env = {
       CLAUDE_CODE_DISABLE_MOUSE_CLICKS = "1";
     };
+    # Status line shown at the bottom of the Claude Code TUI, rendered by
+    # oh-my-posh's built-in `claude` segment.
+    statusLine = {
+      type = "command";
+      command = "oh-my-posh claude";
+      padding = 0;
+    };
   };
 in
 {
