@@ -28,6 +28,10 @@
 
       core.editor = "vim";
 
+      # `git push` on a branch with no upstream creates and tracks
+      # origin/<branch> automatically instead of erroring out.
+      push.autoSetupRemote = true;
+
       color = {
         ui = "auto";
         branch = {
