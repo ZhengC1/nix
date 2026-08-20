@@ -50,5 +50,8 @@
 
     # Infrastructure as code
     terraform       # unfree (BUSL) — whitelisted in flake.nix's allowedUnfree
+
+    # Cloud CLIs
+    azure-cli       # `az` — Azure command line
   ];
 }

@@ -17,6 +17,22 @@ let
       command = "oh-my-posh claude";
       padding = 0;
     };
+    # Fire a native macOS notification (with sound) when Claude finishes
+    # responding. The Stop hook runs when the turn ends (including /clear,
+    # resume, and compact). `|| true` keeps a failed osascript from surfacing
+    # as a hook error in the TUI.
+    hooks = {
+      Stop = [
+        {
+          hooks = [
+            {
+              type = "command";
+              command = "osascript -e 'display notification \"Claude has finished responding\" with title \"Claude Code\" sound name \"Glass\"' 2>/dev/null || true";
+            }
+          ];
+        }
+      ];
+    };
   };
 in
 {

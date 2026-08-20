@@ -48,10 +48,13 @@
 
     initExtra = ''
       # Auto-attach to tmux if not already inside a session.
-      # Skip under VSCode: it runs an interactive login shell at startup to
-      # resolve the shell environment, and `exec tmux` would replace that shell
-      # before VSCode captures PATH — leaving it unable to find nix binaries.
-      if command -v tmux &>/dev/null && [ -n "$PS1" ] && \
+      # Skip under IDEs (VSCode, JetBrains/Rider): they spawn a login shell at
+      # startup to resolve the shell environment, and `exec tmux` would replace
+      # that shell before they capture PATH — leaving them unable to find nix
+      # binaries. The `[ -t 1 ]` guard also covers this generically: env probes
+      # capture stdout through a pipe, so it is not a tty, whereas a real
+      # interactive terminal (including the IDEs' own terminals) keeps one.
+      if command -v tmux &>/dev/null && [ -n "$PS1" ] && [ -t 1 ] && \
          [[ ! "$TERM" =~ screen ]] && [[ ! "$TERM" =~ tmux ]] && \
          [ "$TERM_PROGRAM" != "vscode" ] && [ -z "$VSCODE_RESOLVING_ENVIRONMENT" ] && \
          [ -z "$TMUX" ]; then
@@ -108,10 +111,13 @@
     # initExtra is deprecated in favour of initContent.
     initContent = ''
       # Auto-attach to tmux if not already inside a session.
-      # Skip under VSCode: it runs an interactive login shell at startup to
-      # resolve the shell environment, and `exec tmux` would replace that shell
-      # before VSCode captures PATH — leaving it unable to find nix binaries.
-      if command -v tmux &>/dev/null && [ -n "$PS1" ] && \
+      # Skip under IDEs (VSCode, JetBrains/Rider): they spawn a login shell at
+      # startup to resolve the shell environment, and `exec tmux` would replace
+      # that shell before they capture PATH — leaving them unable to find nix
+      # binaries. The `[ -t 1 ]` guard also covers this generically: env probes
+      # capture stdout through a pipe, so it is not a tty, whereas a real
+      # interactive terminal (including the IDEs' own terminals) keeps one.
+      if command -v tmux &>/dev/null && [ -n "$PS1" ] && [ -t 1 ] && \
          [[ ! "$TERM" =~ screen ]] && [[ ! "$TERM" =~ tmux ]] && \
          [ "$TERM_PROGRAM" != "vscode" ] && [ -z "$VSCODE_RESOLVING_ENVIRONMENT" ] && \
          [ -z "$TMUX" ]; then
