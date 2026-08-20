@@ -1,2 +1,6 @@
 .env
 .vscode/
+
+# Nix build output symlink
+result
+result-*

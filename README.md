@@ -30,15 +30,14 @@ This will install Nix using the official installer. You'll be prompted to allow 
 make install
 ```
 
-This will:
-- Add the home-manager channel
-- Update channels
-- Run the home-manager installer
+This enables `nix-command` and `flakes` in `~/.config/nix/nix.conf` (run once
+after `make install_nix`). Home Manager itself is bootstrapped later by
+`make home` straight from the flake — there is no separate installer step.
 
 ### 3. Apply Configuration
 
 ```bash
-make update
+make home
 ```
 
 This switches to the home-manager configuration and creates a backup of any existing files.
@@ -125,7 +124,7 @@ systems = {
 };
 ```
 
-Then `make update` will automatically detect your system and apply the correct configuration.
+Then `make home` will automatically detect your system and apply the correct configuration.
 
 ## Git Configuration
 
@@ -178,7 +177,7 @@ vim/vi = nvim
 
 After modifying configuration files:
 ```bash
-make update
+make home
 ```
 
 The Makefile automatically detects your OS and applies the correct configuration:
@@ -211,7 +210,7 @@ nix flake update
 
 Then apply:
 ```bash
-make update
+make home
 ```
 
 ### Clean Up
@@ -255,7 +254,8 @@ activation and then left writable so `:Lazy update` works. Copy it back into
 │   ├── macos.nix             # macOS-specific (empty)
 │   ├── linux.nix             # Linux-specific
 │   ├── tmux.nix              # tmux + tpm
-│   └── neovim.nix            # Neovim package + config deployment
+│   ├── neovim.nix            # Neovim package + config deployment
+│   └── claude.nix            # Claude Code ~/.claude/settings.json
 └── dotfiles/
     ├── nvim/                 # Neovim configuration (linked by neovim.nix)
     └── .tmux.conf            # tmux configuration (linked by tmux.nix)
@@ -273,7 +273,7 @@ Ensure nix is installed and sourced:
 Ensure you've run `make install` first, then:
 ```bash
 nix flake update
-make update
+make home
 ```
 
 ### Python/Node/Rust Not Found

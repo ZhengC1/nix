@@ -52,6 +52,9 @@
     terraform       # unfree (BUSL) — whitelisted in flake.nix's allowedUnfree
 
     # Cloud CLIs
-    azure-cli       # `az` — Azure command line
+    # `az` — Azure command line, with the azure-devops extension baked in.
+    # (Nix installs into a read-only store, so `az extension add` won't work;
+    # extensions are declared here instead.)
+    (azure-cli.withExtensions [ azure-cli.extensions.azure-devops ])
   ];
 }

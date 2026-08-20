@@ -4,6 +4,10 @@
   programs.bash = {
     enable = true;
 
+    # Loads bash-completion, which auto-sources git's completion script
+    # (git checkout/switch/branch <TAB> completes branch names).
+    enableCompletion = true;
+
     historyControl = [ "ignoredups" "ignorespace" ];
     historySize = 10000;
     historyFileSize = 20000;
@@ -65,6 +69,10 @@
 
   programs.zsh = {
     enable = true;
+
+    # Runs compinit; zsh's bundled git completion gives branch-name
+    # completion for git checkout/switch/branch <TAB>.
+    enableCompletion = true;
 
     history = {
       size = 10000;
