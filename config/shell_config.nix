@@ -64,6 +64,15 @@
          [ -z "$TMUX" ]; then
         exec tmux
       fi
+
+      # wt: interactive git worktree switcher. Pipes `git worktree list` through
+      # fzf and cd's into the chosen worktree (the path is the first field).
+      wt() {
+        local list sel
+        list=$(git worktree list 2>/dev/null) || { echo "wt: not a git repository" >&2; return 1; }
+        sel=$(printf '%s\n' "$list" | fzf --prompt='worktree> ' --height=40% --reverse) || return
+        [ -n "$sel" ] && cd "''${sel%% *}"
+      }
     '';
   };
 
@@ -131,6 +140,15 @@
          [ -z "$TMUX" ]; then
         exec tmux
       fi
+
+      # wt: interactive git worktree switcher. Pipes `git worktree list` through
+      # fzf and cd's into the chosen worktree (the path is the first field).
+      wt() {
+        local list sel
+        list=$(git worktree list 2>/dev/null) || { echo "wt: not a git repository" >&2; return 1; }
+        sel=$(printf '%s\n' "$list" | fzf --prompt='worktree> ' --height=40% --reverse) || return
+        [ -n "$sel" ] && cd "''${sel%% *}"
+      }
     '';
   };
 

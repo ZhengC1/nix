@@ -34,6 +34,7 @@
     claude-code  # Claude Code CLI
     hyperfine    # benchmarking
     tokei        # count lines of code
+    python3Packages.ptpython  # advanced Python REPL
     oh-my-posh   # prompt theme engine (used by Claude Code statusLine)
 
     # Containers
