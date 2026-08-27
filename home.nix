@@ -13,6 +13,7 @@ in
       config/programming_lang.nix
       config/neovim.nix
       config/claude.nix
+      config/fonts.nix
     ] ++ lib.optionals isDarwin [
       config/macos.nix
     ] ++ lib.optionals isLinux [

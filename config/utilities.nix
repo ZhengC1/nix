@@ -13,6 +13,7 @@
     rsync
     unzip
     zip
+    tldr      # simplified, community-driven man pages
 
     # System & process inspection
     htop
