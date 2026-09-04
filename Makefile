@@ -37,6 +37,14 @@ install: install_nix
 	@echo "✓ Nix installed! Close this terminal and open a new one, then run:"
 	@echo "  make home"
 
+# One-shot new-machine setup: install Nix, enable flakes, and activate the home
+# config in a single run. NIX_ENV (used by `home`) sources the freshly-installed
+# daemon profile at recipe time, so no intermediate shell restart is needed.
+.PHONY: bootstrap
+bootstrap: install home
+	@echo ""
+	@echo "✓ Bootstrap complete. Start a new shell (or: exec $$SHELL)."
+
 # Bootstraps home-manager: builds the activation package straight from the
 # flake (using the home-manager pinned in flake.lock) and activates it, so no
 # home-manager CLI needs to exist beforehand. home.nix installs the CLI itself.

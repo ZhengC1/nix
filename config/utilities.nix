@@ -2,6 +2,12 @@
 
 {
   home.packages = with pkgs; [
+    # Modern bash — macOS ships bash 3.2, but home-manager's generated ~/.bashrc
+    # uses bash 4+ features (`shopt -s globstar`/`checkjobs`, `[[ -v ]]`), which
+    # error on 3.2. Installing a current bash means interactive `bash` (resolved
+    # from ~/.nix-profile/bin, ahead of /bin/bash on PATH) sources it cleanly.
+    bashInteractive
+
     # Modern CLI replacements
     bat       # better cat with syntax highlighting
     eza       # better ls with git integration
@@ -13,7 +19,7 @@
     rsync
     unzip
     zip
-    tldr      # simplified, community-driven man pages
+    # tldr client is provided by programs.tealdeer below (Rust reimplementation)
 
     # System & process inspection
     htop
@@ -38,6 +44,11 @@
     python3Packages.ptpython  # advanced Python REPL
     oh-my-posh   # prompt theme engine (used by Claude Code statusLine)
 
+    # Git hooks frameworks (per-repo config lives in each project, e.g.
+    # .pre-commit-config.yaml / package.json; these just provide the CLIs)
+    pre-commit   # multi-language pre-commit hook manager
+    husky        # git hooks for JS/Node projects
+
     # Containers
     #
     # On macOS the container daemon must run inside a Linux VM, so we install
@@ -59,4 +70,16 @@
     # extensions are declared here instead.)
     (azure-cli.withExtensions [ azure-cli.extensions.azure-devops ])
   ];
+
+  # tealdeer: Rust `tldr` client, providing the `tldr` command. Replaces the
+  # Python `tldr` package, which crashed with a PermissionError while probing
+  # the root-owned, unreadable /usr/local/share/tldr on every lookup. tealdeer
+  # only touches user/XDG cache dirs and refreshes its cache itself.
+  programs.tealdeer = {
+    enable = true;
+    settings.updates = {
+      auto_update = true;
+      auto_update_interval_hours = 168;  # refresh the cache at most weekly
+    };
+  };
 }

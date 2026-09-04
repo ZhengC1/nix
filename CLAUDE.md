@@ -11,6 +11,7 @@ A personal [Nix](https://nix.dev/) + [home-manager](https://nix-community.github
 All workflows go through the `Makefile`, which sources the Nix profile at recipe time (Nix may not be on PATH yet):
 
 ```bash
+make bootstrap     # one-shot new machine: install_nix + install + home in one run
 make install_nix   # install Nix (idempotent; skips if already present)
 make install       # enable flakes in ~/.config/nix/nix.conf (run once after install_nix)
 make home          # build + activate the home-manager config for this machine
@@ -19,7 +20,7 @@ make clean         # nix-collect-garbage -d (remove old generations)
 
 `make home` is the core loop: edit a `.nix` file, run it, start a new shell. It builds `.#homeConfigurations.<user>-<os>.activationPackage` with `--impure` and activates it with `HOME_MANAGER_BACKUP_EXT=backup` (existing files are backed up, not clobbered).
 
-Note: the README refers to `make update`, but the actual target is `make home`.
+On a fresh machine, `make bootstrap` runs the whole chain in a single invocation — the Makefile sources the freshly-installed Nix daemon profile at recipe time, so no intermediate shell restart is needed.
 
 Build without activating (useful to check that a change evaluates):
 

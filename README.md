@@ -16,6 +16,16 @@ A declarative home directory configuration using Nix and home-manager, optimized
 
 ## Installation
 
+### Quick start (new machine)
+
+```bash
+make bootstrap
+```
+
+Runs the whole chain — install Nix, enable flakes, and activate the config — in
+a single invocation, with no intermediate shell restart. Prefer this on a fresh
+machine; the step-by-step flow below is equivalent if you want more control.
+
 ### 1. Install Nix
 
 ```bash
