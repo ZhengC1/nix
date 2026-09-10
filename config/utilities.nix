@@ -63,6 +63,7 @@
 
     # Infrastructure as code
     terraform       # unfree (BUSL) — whitelisted in flake.nix's allowedUnfree
+    pulumi          # cloud IaC platform (Apache-2.0)
 
     # Cloud CLIs
     # `az` — Azure command line, with the azure-devops extension baked in.

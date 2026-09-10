@@ -1,0 +1,12 @@
+[mcp_servers.context7]
+url = "https://mcp.context7.com/mcp"
+
+[mcp_servers.nixos]
+command = "nix"
+args = [
+    "--extra-experimental-features",
+    "nix-command flakes",
+    "run",
+    "github:utensils/mcp-nixos",
+    "--",
+]
