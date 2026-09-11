@@ -5,6 +5,12 @@ set -uo pipefail
 
 PREFIX="claude-"
 
+# Slugs that carry no information about what the session is for. The prefix
+# alone is not enough: `claude-1` is as opaque as `1`. Sessions only -- a
+# window may be named for the thing it runs (`claude-tests` inside a session
+# is informative), but a whole session called `claude-tests` is not.
+GENERIC="tmp temp test tests testing debug demo check session sessions sess work working run running job jobs task tasks misc stuff scratch shell term terminal default new foo bar baz qux thing things sandbox claude agent asdf"
+
 cmd=$(jq -r '.tool_input.command // empty' 2>/dev/null) || exit 0
 [[ $cmd == *tmux* ]] || exit 0
 
@@ -63,6 +69,28 @@ while IFS= read -r seg; do
     deny "Blocked: \`tmux $kind\` with no name. Claude's tmux $kind names must start with '$PREFIX' so they are distinguishable from the user's own — pass -$letter ${PREFIX}<task-slug>."
   elif [[ $name != "$PREFIX"* ]]; then
     deny "Blocked: tmux $kind name '$name' does not start with '$PREFIX'. Rename it to '${PREFIX}${name}' (or another ${PREFIX}<task-slug>) — unprefixed tmux $kind names belong to the user."
+  fi
+
+  # The prefix is only half the rule: the slug after it has to say what the
+  # session/window is for, so it is identifiable weeks later in `tmux ls`.
+  slug=${name#"$PREFIX"}
+  advice="Use a task-derived slug that says what it runs, e.g. ${PREFIX}build-watch or ${PREFIX}terraform-plan."
+
+  if [[ -z $slug ]]; then
+    deny "Blocked: tmux $kind name is the bare prefix '$name' with no slug. $advice"
+  elif [[ $slug =~ ^[0-9]+$ ]]; then
+    deny "Blocked: tmux $kind name '$name' has a numeric slug, which says nothing about the $kind. $advice"
+  elif (( ${#slug} < 3 )); then
+    deny "Blocked: tmux $kind slug '$slug' is too short to be descriptive. $advice"
+  elif [[ $kind == session ]]; then
+    # Strip a trailing counter (claude-tmp-2) before matching, so numbering
+    # cannot smuggle a generic slug past the blocklist.
+    bare=${slug%-[0-9]}; bare=${bare%-[0-9][0-9]}
+    for g in $GENERIC; do
+      if [[ $bare == "$g" ]]; then
+        deny "Blocked: tmux session slug '$slug' is a generic placeholder, not a task name. $advice"
+      fi
+    done
   fi
 done < <(printf '%s\n' "$cmd" | tr ';|&' '\n')
 
