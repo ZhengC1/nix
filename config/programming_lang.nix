@@ -26,8 +26,13 @@
     luarocks
     lua-language-server
 
-    # .NET (SDK includes the runtime, MSBuild, and dotnet CLI)
-    dotnet-sdk_9
+    # .NET (SDK includes the runtime, MSBuild, and dotnet CLI). The 10.0
+    # runtime rides along only so Roslyn-based tooling (Serena's C# language
+    # server) can start; SDK 9 remains what actually builds the projects.
+    (dotnetCorePackages.combinePackages [
+      dotnetCorePackages.sdk_9_0
+      dotnetCorePackages.runtime_10_0
+    ])
     csharprepl      # C# REPL
 
     # Build & misc

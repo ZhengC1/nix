@@ -8,6 +8,13 @@ let
   # own and Claude knows not to touch it. See dotfiles/claude/CLAUDE.md.
   tmuxPrefixHook = "${claudeHome}/hooks/tmux-claude-prefix.sh";
 
+  # PreToolUse(Bash) auto-approver. dotfiles/claude/instructions.md tells Claude
+  # to keep the tmux window name in sync with what it is working on; without
+  # this every rename would stop for a permission prompt, which defeats the
+  # point. Scoped to exactly `tmux rename-window` — everything else falls
+  # through to the normal permission flow.
+  tmuxRenameHook = "${claudeHome}/hooks/approve-tmux-rename.py";
+
   # Claude Code reads env vars from settings.json's `env` block on startup.
   # CLAUDE_CODE_DISABLE_MOUSE_CLICKS turns off click / click-drag / click-to-
   # expand handling (so the terminal's native text selection works again) while
@@ -34,6 +41,12 @@ let
               command = tmuxPrefixHook;
               timeout = 5;
               statusMessage = "Checking tmux session name";
+            }
+            {
+              type = "command";
+              command = tmuxRenameHook;
+              timeout = 5;
+              statusMessage = "Auto-approving tmux rename-window";
             }
           ];
         }
@@ -67,8 +80,16 @@ in
   home.file = {
     ".claude/settings.json".text = lib.generators.toJSON { } settings;
 
-    # Global preferences injected into every session's context.
-    ".claude/CLAUDE.md".source = ../dotfiles/claude/CLAUDE.md;
+    # Global preferences injected into every session's context. instructions.md
+    # is concatenated in rather than kept separate: Claude Code only auto-loads
+    # CLAUDE.md, so a standalone ~/.claude/instructions.md would never be read.
+    # It is still linked below so the path exists as its own file.
+    ".claude/CLAUDE.md".text =
+      builtins.readFile ../dotfiles/claude/CLAUDE.md
+      + "\n"
+      + builtins.readFile ../dotfiles/claude/instructions.md;
+
+    ".claude/instructions.md".source = ../dotfiles/claude/instructions.md;
 
     # Personal slash commands. Linked per-file rather than symlinking the whole
     # commands/ directory, so a plain file dropped in ~/.claude/commands by hand
@@ -97,6 +118,10 @@ in
 
     ".claude/hooks/tmux-claude-prefix.sh" = {
       source = ../dotfiles/claude/hooks/tmux-claude-prefix.sh;
+      executable = true;
+    };
+    ".claude/hooks/approve-tmux-rename.py" = {
+      source = ../dotfiles/claude/hooks/approve-tmux-rename.py;
       executable = true;
     };
   };
