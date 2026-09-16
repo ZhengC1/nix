@@ -252,6 +252,54 @@ Three passes. Everything they produce is a **candidate**, not a finding, until P
    demands, in tests that mirror the source tree? Would any new test fail without the change?
    A test that asserts on a mock, on a message string, or on a name is a real finding.
 
+### Reviewer checklist
+
+The three passes above are *how* you look; this is *what* you must have looked at before you call
+the Find phase done. It is a coverage guide, not a scoring sheet: every box that turns up a
+problem becomes a **candidate** and goes through Phase 5's refuter gate like any other, and every
+finding it produces carries a STANDARDS.md label (`[P0]`–`[P3]`, `Question:` / `Nit:` /
+`Suggestion:`) — never a `CRITICAL` / `HIGH` / `MEDIUM` / `LOW` of its own. A box you cannot settle
+from the diff and the surrounding code is a `Question:`, not a defect.
+
+**Correctness** — the Phase 3.1 pass owns this; use the list to probe its blind spots.
+- [ ] The change does what its stated intent (Phase 2) claims, not merely something plausible.
+- [ ] Edge cases are handled — empty, null, boundary, concurrent access, and the unhappy ordering.
+- [ ] Error paths fail safely: exceptions are caught where they can be acted on rather than
+      swallowed, and partial failure leaves consistent state.
+
+**Security & privacy** — scoped to this C#/Azure codebase, not a generic web app.
+- [ ] No injection reachable from untrusted input: raw SQL / `FromSqlRaw` built by concatenation,
+      a shelled-out process, path or arg building, or an ORM escape hatch that skips parameterisation.
+- [ ] No secrets, connection strings, PATs, or keys in code, config, logs, or test fixtures —
+      they belong in Key Vault / configuration.
+- [ ] Untrusted input is validated and authorised at the system boundary (controller, message
+      handler, public API), not deep inside an already-trusted call path.
+- [ ] Personal or sensitive data is not newly logged, placed in a URL, or widened in scope by this
+      change.
+
+**Performance** — only where the change plausibly moves the needle; do not invent hot paths.
+- [ ] No N+1 pattern (a query inside a loop over rows, a lazy-load inside a projection) and no
+      unbounded fan-out.
+- [ ] Loops and allocations are bounded by something other than caller trust; large result sets are
+      paged or streamed, not materialised whole.
+- [ ] If UI is touched: no needless re-render or re-fetch on every render.
+
+**Style & conventions** — defer mechanical style to `.editorconfig`; this is about fit, not formatting.
+- [ ] Follows the established pattern for this area rather than a parallel new one; no
+      over-engineered abstraction standing behind a single caller.
+- [ ] No commented-out code, no leftover `TODO` / `FIXME` without a tracked owner, no debug logging
+      left in.
+- [ ] Names are clear and consistent with the surrounding code. Do **not** re-report anything
+      `.editorconfig` already governs — run the formatter instead of guessing.
+
+**Testing** — the Phase 3.3 pass owns this; the list is its checklist.
+- [ ] New or changed behavior has tests that mirror the source tree, per STANDARDS.md →
+      *Required Coverage of Changes*.
+- [ ] Both the happy path and the error / edge cases are exercised — happy-path-only is partial
+      coverage, and a finding.
+- [ ] Tests are deterministic: no reliance on wall-clock, ordering, network, or shared mutable
+      state. A flaky test this change introduces is itself a finding.
+
 For each candidate record, in the scratchpad:
 
 - one concrete problem — never two concerns in one candidate

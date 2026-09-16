@@ -98,6 +98,8 @@ in
       ../dotfiles/claude/commands/pr-triage.md;
     ".claude/commands/review-open-prs.md".source =
       ../dotfiles/claude/commands/review-open-prs.md;
+    ".claude/commands/adversarial-review.md".source =
+      ../dotfiles/claude/commands/adversarial-review.md;
     ".claude/commands/cleanup-workspaces.md".source =
       ../dotfiles/claude/commands/cleanup-workspaces.md;
 
