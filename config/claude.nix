@@ -24,6 +24,79 @@ let
     env = {
       CLAUDE_CODE_DISABLE_MOUSE_CLICKS = "1";
     };
+    # Plugin marketplaces registered on every machine. `/plugin marketplace
+    # add` would normally write these into ~/.claude/settings.json, but that
+    # file is a read-only Nix symlink here — so they are declared instead.
+    # Keyed by the marketplace's own `name` from its .claude-plugin/
+    # marketplace.json, NOT by the repo name (they differ for most of these).
+    #
+    # Registering a marketplace only makes its plugins browsable in `/plugin`;
+    # nothing is installed until it is enabled. `autoUpdate` is left unset so
+    # the per-marketplace toggle in `/plugin` stays the user's to flip.
+    extraKnownMarketplaces = {
+      # Anthropic's curated directory (100+ first- and third-party plugins).
+      # It auto-registers in interactive sessions anyway; listed explicitly so
+      # a fresh machine is deterministic.
+      claude-plugins-official = {
+        source = {
+          source = "github";
+          repo = "anthropics/claude-plugins-official";
+        };
+      };
+      # Plugins bundled with Claude Code itself: code-review, pr-review-toolkit,
+      # commit-commands, feature-dev, hookify, plugin-dev, agent-sdk-dev, ...
+      claude-code-plugins = {
+        source = {
+          source = "github";
+          repo = "anthropics/claude-code";
+        };
+      };
+      # Anthropic's official Agent Skills: document-skills (pdf/docx/xlsx/pptx),
+      # claude-api, example-skills.
+      anthropic-agent-skills = {
+        source = {
+          source = "github";
+          repo = "anthropics/skills";
+        };
+      };
+      # Jesse Vincent's Superpowers — brainstorming/TDD/debugging skill suite,
+      # episodic memory, Chrome driving.
+      superpowers-marketplace = {
+        source = {
+          source = "github";
+          repo = "obra/superpowers-marketplace";
+        };
+      };
+      # wshobson/agents — 94 plugins' worth of subagents and workflows.
+      claude-code-workflows = {
+        source = {
+          source = "github";
+          repo = "wshobson/agents";
+        };
+      };
+      # Composio's community list — 24 plugins (frontend-design, artifacts-
+      # builder, connect-apps, ...).
+      awesome-claude-plugins = {
+        source = {
+          source = "github";
+          repo = "composio-community/awesome-claude-plugins";
+        };
+      };
+      # VoltAgent's subagent packs, grouped by domain (lang, infra, qa-sec, ...).
+      voltagent-subagents = {
+        source = {
+          source = "github";
+          repo = "VoltAgent/awesome-claude-code-subagents";
+        };
+      };
+      # Added by hand earlier; kept here so it survives a fresh machine.
+      dotnet-agent-skills = {
+        source = {
+          source = "github";
+          repo = "dotnet/skills";
+        };
+      };
+    };
     # Status line shown at the bottom of the Claude Code TUI, rendered by
     # oh-my-posh's built-in `claude` segment.
     statusLine = {
