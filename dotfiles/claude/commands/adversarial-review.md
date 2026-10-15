@@ -1,6 +1,6 @@
 ---
 description: Implement a feature, then have an independent reviewer adversarially review it, and iterate until it passes — one agent writes, a separate agent tries to find what's wrong, the lead decides.
-argument-hint: "[task…] [--task-file <p>] [--context-file <p>] [--rounds N] [--worktree] [--effort <level>] [--verify] [--commit] [--no-tests] [--dry-run]"
+argument-hint: "[task…] [--task-file <p>] [--context-file <p>] [--rounds N] [--worktree] [--effort <level>] [--verify] [--commit] [--no-tests] [--dry-run] [--no-sweep]"
 ---
 
 # Adversarial implement → review → iterate
@@ -33,6 +33,10 @@ below. Only the transport changes.)*
   approved *and* green — nothing more outward than that, and only if I passed the flag.
 - The change is not done until the Release-configured tests pass (Phase 5). A green review over a
   red build is not an approval.
+- **However the run ends, it cleans up after itself.** [Phase 6](#phase-6--leave-nothing-behind)
+  runs on every exit path — approved, out of rounds, a failed suite, me interrupting you — and
+  whatever it cannot clean is swept by the next run, 24 hours on. If you are stopping early, run
+  Phase 6 first, then hand off.
 - `STANDARDS.md` on the current branch is authoritative engineering policy and `app/.editorconfig`
   is the source of truth for mechanical C# style; both outrank `AGENTS.md`. The reviewer judges
   against them, not against personal taste.
@@ -64,6 +68,7 @@ to an unstated default, and never let the reviewer inherit the implementer's con
 | `--effort <low\|medium\|high>` | How hard Agent B looks and how many refuters `--verify` spawns. Default `medium`. A bare `low`/`medium`/`high` anywhere in `$ARGUMENTS` means the same. |
 | `--verify` | Before a `CRITICAL`/`BLOCK` finding forces another round, an independent refuter must fail to kill it. Stops a wrong review from thrashing the implementer. See [The refuter gate](#the-refuter-gate---verify). |
 | `--commit` | After APPROVE + green tests, make one local commit on the feature branch. Never pushes. |
+| `--no-sweep` | Skip Phase 0's sweep of leftovers from earlier runs. Cleaning up after *this* run still happens. |
 | `--no-tests` | Skip the Phase 5 build/test run. Then say plainly, in the hand-off, that the change is unverified. |
 | `--dry-run` | Run implement + review + iterate, but make no commit and skip Phase 5. Leave the changes in the working tree for me to inspect. |
 | `--help` / `-h` | Print what this routine does and every flag, then stop. Touches nothing. |
@@ -100,6 +105,22 @@ spawns, no git, no model question:
 
 ## Phase 0 — Scope, baseline, workspace
 
+**Open this run's manifest first, and reap what earlier runs abandoned.** Everything this run
+creates is declared to it as it is created, so Phase 6 does not depend on your memory of what you
+made:
+
+```bash
+export CLAUDE_SWEEP_RUN=$(~/.claude/scripts/claude-sweep.sh begin adversarial-review)
+~/.claude/scripts/claude-sweep.sh sweep        # skip under --no-sweep
+```
+
+`sweep` touches only a leftover at least 24 hours old and provably finished — a clean worktree
+whose commits are on a remote, a scratch dir, a detached `claude-` tmux session. Anything dirty,
+unpushed, attached, or not mine comes back `KEPT` with a reason; a `SESSION` line is a Claude chat
+for you to archive (Phase 6 says how). Never force past a `KEPT`.
+
+Then:
+
 1. Assemble the task text from the bare `$ARGUMENTS` and any `--task-file`. If the task is empty or
    one vague line, ask me for the acceptance criteria before spawning anything — a fuzzy task
    guarantees a fuzzy review.
@@ -114,7 +135,12 @@ spawns, no git, no model question:
    MAIN=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
    WT="$MAIN/.claude/worktrees/<task-slug>"
    git -C "$MAIN" worktree add "$WT" -b <task-slug>
+   ~/.claude/scripts/claude-sweep.sh register worktree "$WT"
    ```
+   Register it even though this run must not delete it — the change lives there until I act on it.
+   The sweep refuses to remove a worktree that is dirty or whose commits are on no remote, which
+   is exactly this one, so it will be reported and left alone until the branch is pushed; after
+   that a later run reclaims it on its own.
 6. Print the run header: task summary, both models, effort, round budget, worktree path (or "in
    place"), and whether `--commit`/`--dry-run`/`--verify` are set.
 
@@ -253,6 +279,7 @@ STANDARDS.md → *Definition of Done*, and quote the evidence line — never num
 
 ```bash
 export PR_EVIDENCE_DIR="<scratchpad>/evidence-<task-slug>"
+~/.claude/scripts/claude-sweep.sh register scratch "$PR_EVIDENCE_DIR"
 ~/.claude/scripts/pr-test-evidence.sh run <task-slug>-final
 ~/.claude/scripts/pr-test-evidence.sh summary <task-slug>-final
 ```
@@ -276,3 +303,30 @@ Then hand off — do not merge, push, or open a PR:
 
 Be blunt about what did not get done. Do not describe the change as reviewed unless a separate
 agent reviewed it, and do not describe it as passing unless `pr-test-evidence.sh summary` agreed.
+
+## Phase 6 — Leave nothing behind
+
+Run this **every time, on every exit path** — after the hand-off, after a red suite, after running
+out of rounds, after an interrupt. The hand-off above is what I read; this is what keeps the next
+run's workspace readable.
+
+```bash
+~/.claude/scripts/claude-sweep.sh finish
+```
+
+Quote the `pr-test-evidence.sh summary` line into the hand-off *before* this runs — it reaps the
+evidence directory with everything else.
+
+It prints one line per registered artifact. Two of them are work for you:
+
+- **`KEPT`** — it refused, with the reason verbatim. **The work-tree holding the change is
+  supposed to appear here**, as dirty or as commits on no remote: that is the guard doing its job,
+  not a failure. Name it in the hand-off as the place the change is waiting, and never force past
+  it. Once I push or merge that branch, a later run's sweep reclaims the worktree by itself.
+- **`SESSION`** — a Claude chat this run spawned. Archive it with
+  `mcp__ccd_session_mgmt__archive_session` — never `delete_session`, never
+  `force_worktree_cleanup`. Skip one still running or pinned, and say which you skipped.
+
+Then end the session rather than leaving it hanging: the run is over when the hand-off is printed.
+Do not poll, do not wait, do not keep the session open in case I come back. If a scheduled task
+started this run, archive this chat too once the hand-off is delivered.

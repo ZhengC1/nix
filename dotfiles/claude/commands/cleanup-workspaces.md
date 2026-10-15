@@ -1,6 +1,6 @@
 ---
 description: Close unused tmux sessions, git worktrees, and idle Claude chats — survey first, confirm, then clean.
-argument-hint: "[--dry-run] [--yes] [--delete-chats] [--older-than <hours>]"
+argument-hint: "[--dry-run] [--yes] [--delete-chats] [--older-than <hours>] [--manifests-only]"
 ---
 
 # Workspace cleanup
@@ -9,6 +9,12 @@ Reclaim the leftovers from finished work: `claude-` tmux sessions nobody is atta
 git worktrees whose work has landed, and Claude chats that have gone idle.
 
 `$ARGUMENTS`
+
+The routines (`/pr-triage`, `/review-open-prs`, `/adversarial-review`) already reap their own
+leftovers — each declares what it creates to `~/.claude/scripts/claude-sweep.sh`, cleans up on
+exit, and sweeps what earlier runs abandoned once it is 24 hours old. This command is the wider,
+manual pass: everything those sweeps refuse to touch (dirty worktrees, unpushed branches, chats)
+plus the leftovers of work that never went through a routine at all.
 
 Default is `--older-than 4` hours of inactivity. `--dry-run` surveys and reports without
 touching anything. `--yes` skips the confirmation step. `--delete-chats` permanently deletes
@@ -41,6 +47,18 @@ git branch -r --contains HEAD
 
 List Claude chats with `mcp__ccd_session_mgmt__list_sessions`.
 
+Ask the routines what they know they left behind, and why they would not remove it themselves:
+
+```bash
+~/.claude/scripts/claude-sweep.sh stale --older-than <hours>   # read-only
+~/.claude/scripts/claude-sweep.sh sweep --older-than <hours> --dry-run
+```
+
+A `STALE` line names the run that created the artifact; a `KEPT` line from `--dry-run` says
+exactly why the automatic sweep will never take it — that reason is the row's `state` in the table
+below, and it is usually the thing I actually need to decide. Under `--manifests-only`, report
+these and nothing else.
+
 Correlate the three: a chat's `cwd` is usually a worktree, and archiving the chat removes that
 worktree for you. So resolve chats first, then clean up whatever worktrees are left orphaned.
 
@@ -66,9 +84,11 @@ In this order, so worktree removal is mostly handled for you:
 1. **Chats** — `archive_session` per chat (reversible; also stops the process and cleans its
    worktree). With `--delete-chats`, `delete_session` instead, one call for the whole batch.
    Never pass `force_worktree_cleanup`.
-2. **Worktrees still present** — `git worktree remove <path>`, then `git worktree prune`. If
+2. **Registered leftovers** — `~/.claude/scripts/claude-sweep.sh sweep --older-than <hours>`, so
+   the routines' own manifests are consumed and retired rather than left to grow.
+3. **Worktrees still present** — `git worktree remove <path>`, then `git worktree prune`. If
    removal is refused, report the refusal rather than forcing it.
-3. **tmux** — `tmux kill-session -t <name>` for each `claude-`prefixed session with
+4. **tmux** — `tmux kill-session -t <name>` for each `claude-`prefixed session with
    `attached=0` and idle beyond the threshold.
 
 ## 5. Report

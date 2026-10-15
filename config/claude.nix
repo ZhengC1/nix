@@ -192,6 +192,14 @@ in
       source = ../dotfiles/claude/scripts/pr-test-evidence.sh;
       executable = true;
     };
+    # Leftover reaper. The review routines declare every worktree, scratch dir
+    # and tmux session they create to it, so a run that is interrupted before
+    # its cleanup phase is still cleaned up -- by the next run, once the
+    # leftovers are a day old.
+    ".claude/scripts/claude-sweep.sh" = {
+      source = ../dotfiles/claude/scripts/claude-sweep.sh;
+      executable = true;
+    };
 
     ".claude/hooks/tmux-claude-prefix.sh" = {
       source = ../dotfiles/claude/hooks/tmux-claude-prefix.sh;

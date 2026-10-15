@@ -1,6 +1,6 @@
 ---
 description: Triage my open Azure DevOps PRs — address review comments, verify against evidence, push, then reply to and resolve each thread that survives verification.
-argument-hint: "[pr numbers…] [low|medium|high] [--include-drafts] [--dry-run] [--effort <level>] [--no-verify] [--audit-only] [--keep-worktrees]"
+argument-hint: "[pr numbers…] [low|medium|high] [--include-drafts] [--dry-run] [--effort <level>] [--no-verify] [--audit-only] [--keep-worktrees] [--no-sweep]"
 ---
 
 # PR triage routine
@@ -20,6 +20,12 @@ that their ask is done. A thread left open and honestly reported is a good outco
 resolved on a fix that does not hold is a lie told in my name. When in doubt, reply and leave it
 active.
 
+**However the run ends, it cleans up after itself.** Worktrees, scratch dirs and chats from
+finished work are not free: they pile up until the next run cannot tell live work from dead.
+So [Phase 9](#phase-9--leave-nothing-behind) runs on *every* exit path — success, a PR you
+skipped, a failed phase, me interrupting you — and whatever it cannot clean is swept by the next
+run, 24 hours on. If you are stopping early, run Phase 9 first, then report.
+
 ## Flags
 
 | Flag | Effect |
@@ -30,7 +36,8 @@ active.
 | `--no-verify` | Skip Phase 6's independent verification. Then **resolve nothing** — fix, push, reply, and leave every thread active. |
 | `--effort <low\|medium\|high>` | How hard the verification fan-out works. Default `medium`. A bare `low` / `medium` / `high` anywhere in `$ARGUMENTS` means the same thing. See [Effort](#effort). |
 | `--audit-only` | Run Phase 8 alone against work from a previous run. No fixing, no writes. |
-| `--keep-worktrees` | Leave the per-PR worktrees in place after finishing. |
+| `--keep-worktrees` | Leave the per-PR worktrees in place after finishing. They are still registered, so a later run reaps them once they go stale. |
+| `--no-sweep` | Skip Phase 0's sweep of leftovers from earlier runs. Cleaning up after *this* run still happens. |
 | `--workflow` | Run the read-only fan-out phases through the `Workflow` tool instead of ad-hoc subagents. See [Running the fan-out as a workflow](#running-the-fan-out-as-a-workflow---workflow). |
 | `--help` / `-h` | Print what this routine does and every flag, then stop. Touches nothing. |
 
@@ -87,8 +94,9 @@ Azure DevOps calls, no worktrees, no `az`, no other phase:
    prove the push, the diff, and the test counts; context-isolated verifier subagents judge
    whether the reviewer's ask is actually met, defaulting to NOT_ADDRESSED; a thread that does
    not pass gets an honest reply and stays open.
-4. The two script help texts are available separately:
-   `~/.claude/scripts/ado-pr.sh help` and `~/.claude/scripts/pr-test-evidence.sh help`.
+4. The script help texts are available separately: `~/.claude/scripts/ado-pr.sh help`,
+   `~/.claude/scripts/pr-test-evidence.sh help`, and `~/.claude/scripts/claude-sweep.sh help`
+   (what this routine registers and reaps).
 5. The single most useful invocation: `/pr-triage <pr> --dry-run`.
 
 Do not run `--help` together with any other work. It is a request for information, not a run.
@@ -125,6 +133,19 @@ pr-test-evidence.sh bind <label> <sha>      # the tested tree IS that commit, cl
 pr-test-evidence.sh regression-check <base-sha> --filter <expr>
 ```
 
+Workspace bookkeeping goes through `~/.claude/scripts/claude-sweep.sh` — every worktree, scratch
+dir and tmux session this run creates is declared to it, and it reaps both this run's leftovers
+and the ones earlier runs abandoned. See [Phase 0](#phase-0--scope) and
+[Phase 9](#phase-9--leave-nothing-behind).
+
+```
+claude-sweep.sh begin pr-triage             # open this run's manifest, print the run id
+claude-sweep.sh register <kind> <value>     # worktree | scratch | tmux | session
+claude-sweep.sh sweep [--older-than <h>]    # reap what runs older than 24h left behind
+claude-sweep.sh stale                       # the same list, read-only
+claude-sweep.sh finish [--keep-worktrees]   # reap this run's own artifacts
+```
+
 Set `PR_EVIDENCE_DIR` to a per-PR directory under the scratchpad before running any of these.
 Write reply bodies to the scratchpad, never into the repo.
 
@@ -140,7 +161,22 @@ only after I have approved that specific decline in this conversation.
 
 ## Phase 0 — Scope
 
-Resolve the effort level before anything else, per [Effort](#effort): `--effort <level>`, a bare
+**Open this run's manifest before anything else, and reap what earlier runs abandoned.** Every
+run of this routine is one `CLAUDE_SWEEP_RUN`, and everything it creates is declared to it as it
+is created, so the cleanup in Phase 9 does not depend on your memory of what you made:
+
+```bash
+export CLAUDE_SWEEP_RUN=$(~/.claude/scripts/claude-sweep.sh begin pr-triage)
+~/.claude/scripts/claude-sweep.sh sweep        # skip under --no-sweep
+```
+
+`sweep` only removes a leftover that is at least 24 hours old and provably finished — a clean
+worktree whose commits are on a remote, a scratch dir, a detached `claude-` tmux session. Anything
+dirty, unpushed, attached, or not mine comes back as `KEPT` with a reason, and anything it reports
+as `SESSION` is a Claude chat for you to archive (Phase 9 says how). Never force past a `KEPT`;
+carry it into the Phase 8 report instead and let me decide.
+
+Then resolve the effort level, per [Effort](#effort): `--effort <level>`, a bare
 `low` / `medium` / `high` in `$ARGUMENTS`, otherwise `medium`. Print it alongside the queue, and
 reject an unrecognised level by asking me rather than guessing.
 
@@ -163,7 +199,13 @@ MAIN=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
 WT="$MAIN/.claude/worktrees/ado-pr-<id>-triage"
 git -C "$MAIN" fetch origin <sourceBranch>
 git -C "$MAIN" worktree add "$WT" <sourceBranch>
+export PR_EVIDENCE_DIR="<scratchpad>/evidence-pr-<id>"
+~/.claude/scripts/claude-sweep.sh register worktree "$WT"
+~/.claude/scripts/claude-sweep.sh register scratch "$PR_EVIDENCE_DIR"
 ```
+
+- **Register before you use it, not after.** The whole point is that a run which dies in Phase 3
+  still gets cleaned up by the next one; an unregistered worktree is one nobody will reap.
 
 - Reuse an existing worktree, but `git -C "$WT" pull --ff-only` to the remote tip first.
 - **Assert you are on the branch tip before reading any feedback:** `git rev-parse HEAD` must
@@ -533,9 +575,6 @@ including threads a *previous* run closed, which is why `--audit-only` exists. R
 against the Phase 6 ledger and call out every disagreement: a resolve that did not take, a reply
 that did not land, a thread you thought you left open.
 
-Remove each worktree unless `--keep-worktrees` (`git -C <main> worktree remove <path>`); leave it
-and say so if it still has uncommitted changes.
-
 Then report, across all PRs:
 
 | PR | Threads | Passed verification | Resolved | Left active | Pushed SHA | Build/tests |
@@ -553,3 +592,31 @@ Below the table:
 Be blunt about what did not get done. If you skipped verification, say so and say that nothing
 was resolved. Do not describe a thread as verified unless a verifier you did not influence said
 so, and do not describe anything as pushed unless `sha-on-branch` agreed.
+
+## Phase 9 — Leave nothing behind
+
+Run this **every time, on every exit path** — after the report above, after a failure, after an
+interrupt, after `--audit-only`. A run that dies between Phase 3 and Phase 8 is exactly how a
+month-old `ado-pr-<id>-triage` worktree ends up on disk with nobody owning it.
+
+```bash
+~/.claude/scripts/claude-sweep.sh finish      # add --keep-worktrees under that flag
+```
+
+It reaps every artifact this run registered and prints one line each. Two of those lines are work
+for you, not information:
+
+- **`KEPT`** — it refused, and the reason is verbatim on the line (uncommitted changes, commits on
+  no remote, someone standing in the worktree). Put every one in the report. Never force past it:
+  `--force`-removing a worktree here throws away a fix I have not seen.
+- **`SESSION`** — a Claude chat this run spawned. Archive it with
+  `mcp__ccd_session_mgmt__archive_session` — never `delete_session`, never
+  `force_worktree_cleanup`. Skip one that is still running or pinned, and say which you skipped.
+
+Then end the session instead of leaving it hanging. The run is over when the report is printed: do
+not poll the build, do not wait for a reviewer, do not hold the session open in case I come back.
+If a scheduled task started this run, archive this chat as well once the report is delivered —
+that is the chat that would otherwise sit in the sidebar until I notice it.
+
+A leftover you could not clean is not a footnote. Say it in one line at the end of the report:
+*"Left behind: `<path>` — <reason>; the next run sweeps it after 24h."*
