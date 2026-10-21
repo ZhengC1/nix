@@ -545,6 +545,36 @@ Addressed in <shortSha>. <What concretely changed, in which files.> Verification
 `summary` output for the focused run; then for the full run — including the skipped count.>
 ```
 
+**That template is the whole reply, not its opening.** A reply is a receipt, not a report.
+The reviewer already knows what they asked and already knows this codebase; they want to
+learn, in one glance, that it is done and what proves it.
+
+| Thread outcome | Budget |
+| --- | --- |
+| PASSED | **4 sentences**, plus the one-line verification. No headings, no bullets. |
+| Did not pass | **6 sentences**: what landed, what did not, what remains. |
+| Declining, or answering a `Question:` | **4 sentences.** |
+
+A caveat that genuinely changes what the reviewer should believe — evidence that came from
+somewhere other than the committed path, a clause you did not meet — gets **one sentence**,
+in the reply, never a section of its own. More than one such caveat means the thread did not
+really pass; leave it active instead of annotating a resolve into honesty.
+
+Cut these every time. Each one cost a real reviewer real minutes:
+
+- Restating the reviewer's own finding back to them, or conceding at length that they were
+  right. "You are right" is the whole concession; the fix is the evidence.
+- Explaining how the code works to the person who reviewed it.
+- Narrating the triage: what you verified, which agents ran, what you considered and rejected.
+- Quoting STANDARDS.md, baselines or divergence policy to justify the change. If a standards
+  conflict is real it belongs in the Phase 8 report to me, not in the thread.
+- Offering options, inviting follow-up questions, or asking the reviewer to choose. Say what
+  you did.
+- Listing every file or location you touched when "in the notes" or "in the test suite" says it.
+
+Longer than the budget is a defect in the reply, not thoroughness. Everything you cut that
+still matters goes in the Phase 8 report, where I read it — not in front of the reviewer.
+
 Then close it in one step, so a failed reply can never be followed by a resolve:
 
 ```bash
@@ -556,7 +586,8 @@ is the newest comment on the thread and the thread is still open, then reads the
 If either step fails, the thread stays active — report it, do not retry blindly.
 
 For a thread that did **not** pass: `ado-pr.sh reply` only. Say plainly what is done, what is
-not, and what remains, and quote the verifier's one-line reason. Leave it `active`.
+not, and what remains, and quote the verifier's one-line reason — inside the six-sentence
+budget above. Leave it `active`.
 
 `Question:` threads resolve once a direct answer is posted and the Answer Auditor passes.
 `Nit:` / `Suggestion:` you are not applying: reply with the reason, leave active for the reviewer.
