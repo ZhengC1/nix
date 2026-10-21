@@ -5,7 +5,8 @@
 # findings, never fixes; it has no push, no resolve-my-own-thread, no worktree.
 #
 # Read subcommands are safe to run freely:
-#   ado-review.sh review-prs [--include-drafts]  active PRs where I am a reviewer
+#   ado-review.sh review-prs [--include-drafts]  active PRs where I am a reviewer,
+#                                          in every project in the org, not just this repo
 #   ado-review.sh about <pr>               author, description, reviewers + votes, iterations
 #   ado-review.sh iterations <pr>          iteration list with source commit ids
 #   ado-review.sh files <pr> [iteration]   paths changed, per the server
@@ -27,7 +28,9 @@
 #   ado-review.sh vote-status <pr> [expected]    read my vote back
 #   ado-review.sh review-audit <pr> [--json]     every thread I opened + a verdict
 #
-# Override the target with ADO_ORG / ADO_PROJECT / ADO_REPO if needed.
+# ADO_PROJECT / ADO_REPO are only the fallback target: review-prs searches the
+# whole organisation, and every subcommand taking a <pr> repoints at whichever
+# repository that PR lives in. Override the org with ADO_ORG if needed.
 # ADO_REVIEW_DRY_RUN=1     comment/vote print what they would send and write nothing.
 # ADO_REVIEW_ALLOW_VOTE=1  required by `vote` at all; a vote speaks in my name.
 # ADO_REVIEW_ALLOW_REJECT=1  additionally required for `reject`.
@@ -41,8 +44,12 @@ PROJECT="${ADO_PROJECT:-UTIE-2.0}"
 REPO="${ADO_REPO:-UTIE-2.0}"
 
 ADO_RESOURCE=499b84ac-1321-427f-aa17-267ca6975798
-BASE="https://dev.azure.com/${ORG}/${PROJECT}/_apis/git/repositories/${REPO}"
 API="api-version=7.1"
+
+# The fallback target. Every subcommand that takes a PR id repoints these at the
+# repository that PR actually lives in -- see set_base_for_pr.
+BASE="https://dev.azure.com/${ORG}/${PROJECT}/_apis/git/repositories/${REPO}"
+PR_PROJECT="$PROJECT"
 
 # The usage text is the header comment block, so the two cannot drift.
 usage() { sed -n '2,/^$/p' "$0" | sed -e 's/^# \{0,1\}//'; }
@@ -65,6 +72,29 @@ whoami_id() {
         | python3 -c 'import sys,json; print(json.load(sys.stdin)["authenticatedUser"]["id"])'
 }
 
+# The PRs I am added to are spread across the whole organisation, so a bare PR
+# id says nothing about which repository to call. Only the org-level lookup can
+# resolve one; a PR never moves, so the answer is cached.
+set_base_for_pr() {
+    local pr=$1 proj="" repo=""
+    local dir="${XDG_CACHE_HOME:-$HOME/.cache}/ado-cli"
+    local cached="${dir}/pr-${ORG}-${pr}"
+    if [[ -r $cached ]]; then
+        IFS=' ' read -r proj repo < "$cached" || true
+    fi
+    if [[ -z $proj || -z $repo ]]; then
+        IFS=' ' read -r proj repo < <(
+            req GET "https://dev.azure.com/${ORG}/_apis/git/pullrequests/${pr}?${API}" \
+                | python3 -c 'import sys,json
+r = json.load(sys.stdin)["repository"]
+print(r["project"]["id"], r["id"])') || true
+        [[ -n $proj && -n $repo ]] || die "could not resolve the repository PR ${pr} lives in"
+        mkdir -p "$dir" && printf '%s %s\n' "$proj" "$repo" > "$cached"
+    fi
+    PR_PROJECT=$proj
+    BASE="https://dev.azure.com/${ORG}/${proj}/_apis/git/repositories/${repo}"
+}
+
 cmd_whoami() {
     req GET "https://dev.azure.com/${ORG}/_apis/connectionData?api-version=7.1-preview" \
         | python3 -c '
@@ -75,13 +105,15 @@ print(json.dumps({"id": u["id"], "displayName": u.get("providerDisplayName")}, i
 
 VOTE_NAMES='{10: "approved", 5: "approved-with-suggestions", 0: "no-vote", -5: "waiting-for-author", -10: "rejected"}'
 
-# PRs where I am on the reviewer list. A PR I created is dropped even if I am
-# also listed as a reviewer -- that one belongs to /review-my-open-prs, not here.
+# PRs where I am on the reviewer list, required or optional, in any project in
+# the organisation -- being added to a PR is what puts it here, not where it
+# lives. A PR I created is dropped even if I am also listed as a reviewer --
+# that one belongs to /review-my-open-prs, not here.
 cmd_review_prs() {
     local include_drafts=0
     [[ ${1:-} == --include-drafts ]] && include_drafts=1
     local me; me=$(whoami_id)
-    req GET "${BASE}/pullRequests?searchCriteria.reviewerId=${me}&searchCriteria.status=active&\$top=100&${API}" \
+    req GET "https://dev.azure.com/${ORG}/_apis/git/pullrequests?searchCriteria.reviewerId=${me}&searchCriteria.status=active&\$top=100&${API}" \
         | python3 -c '
 import sys, json
 me, include_drafts = sys.argv[1], sys.argv[2] == "1"
@@ -93,10 +125,14 @@ for p in json.load(sys.stdin)["value"]:
     if p.get("isDraft") and not include_drafts:
         continue
     mine = next((r for r in p.get("reviewers", []) if r["id"] == me), None)
+    repo = p["repository"]
     out.append({
         "id": p["pullRequestId"],
         "title": p["title"],
         "author": p["createdBy"]["displayName"],
+        "project": repo["project"]["name"],
+        "repo": repo["name"],
+        "sshUrl": repo.get("sshUrl"),
         "isDraft": p.get("isDraft", False),
         "sourceBranch": p["sourceRefName"].removeprefix("refs/heads/"),
         "targetBranch": p["targetRefName"].removeprefix("refs/heads/"),
@@ -122,6 +158,9 @@ print(json.dumps({
     "title": p["title"],
     "author": p["createdBy"]["displayName"],
     "authorIsMe": p["createdBy"]["id"] == me,
+    "project": p["repository"]["project"]["name"],
+    "repo": p["repository"]["name"],
+    "sshUrl": p["repository"].get("sshUrl"),
     "status": p["status"],
     "isDraft": p.get("isDraft", False),
     "sourceBranch": p["sourceRefName"].removeprefix("refs/heads/"),
@@ -405,7 +444,7 @@ print("%s\t%s" % ((it.get("commonRefCommit") or {}).get("commitId"),
     [[ -n $base && -n $head ]] || die "PR $pr iteration has no commit ids"
 
     # Server-side diff of the file, so this works without a local checkout.
-    local url="https://dev.azure.com/${ORG}/${PROJECT}/_apis/git/repositories/${REPO}"
+    local url="$BASE"
     local blobs
     blobs=$(req GET "${url}/diffs/commits?baseVersion=${base}&baseVersionType=commit&targetVersion=${head}&targetVersionType=commit&\$top=2000&${API}" \
         | python3 -c '
@@ -500,6 +539,13 @@ print()
 print("%d thread(s) opened by you; %d waiting on your response" % (len(rows), need))
 sys.exit(1 if need else 0)'
 }
+
+# Every subcommand below that takes a <pr> is repo-scoped, so the repository has
+# to be resolved before it runs, not inside each one.
+case ${1:-} in
+    about|iterations|files|my-threads|needs-me|comment|vote|posted|anchored|line-in-diff|vote-status|review-audit)
+        set_base_for_pr "${2:?pr id required}" ;;
+esac
 
 case ${1:-} in
     review-prs)    shift; cmd_review_prs "$@" ;;

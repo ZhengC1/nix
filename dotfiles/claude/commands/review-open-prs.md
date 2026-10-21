@@ -5,7 +5,9 @@ argument-hint: "[pr numbers…] [low|medium|high] [--include-drafts] [--dry-run]
 
 # PR review routine
 
-Review the open Azure DevOps pull requests **other people** wrote and I am a reviewer on: read
+Review the open Azure DevOps pull requests **other people** wrote and added me to as a reviewer,
+required or optional, in **any project in the organisation** — being added is what puts a PR in
+the queue, not which repo it lives in, and most of them are not the repo I am standing in. Read
 the change against its stated intent, find real defects, prove each one before it is posted, and
 comment in the form STANDARDS.md requires. `/pr-triage` is the mirror of this routine — it works
 my own PRs and consumes exactly the labels this one writes.
@@ -63,7 +65,7 @@ invoking `code-review` directly.
 | `--effort <low\|medium\|high>` | How hard the find and refute passes work. Default `medium`. A bare `low` / `medium` / `high` anywhere in `$ARGUMENTS` means the same thing. See [Effort](#effort). |
 | `--vote <v>` | Propose a vote at the end. Still requires my explicit yes in chat before it is cast. |
 | `--audit-only` | Run Phase 9 alone against a previous run. No reviewing, no writes. |
-| `--keep-worktrees` | Leave the per-PR worktrees in place after finishing. They stay registered, so a later run reaps them once they go stale. |
+| `--keep-worktrees` | Leave the per-PR worktrees in place after finishing. They stay registered, so a later run reaps them once they go stale. It holds worktrees only — a cross-repo clone is scratch and goes anyway; say so in the report. |
 | `--no-sweep` | Skip Phase 0's sweep of leftovers from earlier runs. Cleaning up after *this* run still happens. |
 | `--workflow` | Run the read-only fan-out phases through the `Workflow` tool. See [Running the fan-out as a workflow](#running-the-fan-out-as-a-workflow---workflow). |
 | `--help` / `-h` | Print what this routine does and every flag, then stop. Touches nothing. |
@@ -135,7 +137,8 @@ check could not run.** Treat 2 exactly like a failure, and never work around a n
 asserting the claim in prose instead.
 
 ```
-ado-review.sh review-prs [--include-drafts]  active PRs where I am a reviewer, not the author
+ado-review.sh review-prs [--include-drafts]  active PRs I am a reviewer on, org-wide,
+                                             not the author
 ado-review.sh about <pr>                     author, description, reviewers + votes, iterations
 ado-review.sh iterations <pr>                iteration list with source commit ids
 ado-review.sh files <pr> [iteration]         paths changed, per the server
@@ -158,6 +161,9 @@ ado-pr.sh reply <pr> <threadId> <file>       --follow-up only, on my own threads
 ado-pr.sh reply-and-resolve <pr> <threadId> <file> [status]
 ado-pr.sh policy-status <pr>
 ```
+
+Every subcommand that takes a `<pr>` resolves which repository that PR lives in by itself, so a
+PR id from another project just works — nothing needs `ADO_PROJECT` or `ADO_REPO` set.
 
 Write finding bodies to the scratchpad, never into the repo or the author's worktree.
 
@@ -205,8 +211,10 @@ reject an unrecognised level by asking me rather than guessing.
 
 1. If `$ARGUMENTS` names PR numbers, use exactly those — but run `about <pr>` and **stop on any
    PR where `authorIsMe` is true**: that one belongs to `/pr-triage`. Say so and move on.
-2. Otherwise `review-prs`. Drop drafts unless `--include-drafts`.
-3. Print the queue: id, title, author, source branch, my current vote, required or optional.
+2. Otherwise `review-prs`. It searches the whole organisation, so the queue routinely holds PRs
+   from repos other than this one. Drop drafts unless `--include-drafts`.
+3. Print the queue: id, project/repo, title, author, source branch, my current vote, required or
+   optional. **Group it by repo** — consecutive PRs in one repo share a checkout and a build.
 4. Under `--audit-only`, go straight to Phase 9 for each PR and stop. Under `--follow-up`, go to
    [Follow-up mode](#follow-up-mode).
 5. If the queue is empty, say so and stop.
@@ -214,21 +222,37 @@ reject an unrecognised level by asking me rather than guessing.
 Process PRs **one at a time, to completion**. A failure on one PR must not abort the rest —
 record it and move on.
 
-## Phase 1 — Read-only worktree per PR
+## Phase 1 — Read-only checkout per PR
 
-Never touch my main checkout or the current worktree's working state. Resolve the **main
-checkout** first — `git rev-parse --show-toplevel` gives the current worktree, not the main repo:
+Never touch my main checkout or the current worktree's working state. A PR in the repo I am
+standing in gets a worktree off the **main checkout** — `git rev-parse --show-toplevel` gives the
+current worktree, not the main repo. A PR in any other repo has nothing here to branch from, so
+it gets a clone of its own, in the scratchpad:
 
 ```bash
 MAIN=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+export PR_EVIDENCE_DIR="<scratchpad>/evidence-pr-<id>"
+~/.claude/scripts/claude-sweep.sh register scratch "$PR_EVIDENCE_DIR"
+
+# This repo — a worktree off the main checkout.
 WT="$MAIN/.claude/worktrees/ado-pr-<id>-review"
 git -C "$MAIN" fetch origin <sourceBranch> <targetBranch>
 git -C "$MAIN" worktree add --detach "$WT" origin/<sourceBranch>
-export PR_EVIDENCE_DIR="<scratchpad>/evidence-pr-<id>"
 ~/.claude/scripts/claude-sweep.sh register worktree "$WT"
-~/.claude/scripts/claude-sweep.sh register scratch "$PR_EVIDENCE_DIR"
+
+# Any other repo — its own clone, over SSH, from the sshUrl `about` reports.
+WT="<scratchpad>/repo-pr-<id>"
+git clone --filter=blob:none --no-checkout <sshUrl> "$WT"
+git -C "$WT" checkout --detach origin/<sourceBranch>
+~/.claude/scripts/claude-sweep.sh register scratch "$WT"
 ```
 
+- **Which branch of that you take is decided by `about <pr>`** — its `repo` against the main
+  checkout's own remote, never by the PR id. SSH is not a preference: HTTPS has no stored
+  credential for the other repos and will sit there asking for a password.
+- **A clone is registered `scratch`, never `worktree`.** The sweep refuses to remove a directory
+  that is not a real worktree of a main checkout, and refuses to `rm -rf` anything outside a
+  scratch root; a clone parked under `.claude/worktrees/` is neither, and would never be reaped.
 - **Register before you use it, not after.** A run that dies in Phase 3 is cleaned up by the next
   one only if its worktree was declared; an unregistered worktree is one nobody will reap.
 
@@ -292,6 +316,9 @@ Three passes. Everything they produce is a **candidate**, not a finding, until P
    description too — a missing `Verification` section is a legitimate finding.
    **Do not report formatting already governed by `.editorconfig`** unless the submitted code
    actually violates a configured rule; run the formatter rather than guessing.
+   A repo outside UTIE-2.0 may carry neither file. Say so in the report and review on general
+   engineering grounds — never cite a STANDARDS.md section at an author whose repo has no
+   STANDARDS.md, and never label a finding by a priority table that does not govern them.
 3. **Tests.** Does the change carry the coverage STANDARDS.md → *Required Coverage of Changes*
    demands, in tests that mirror the source tree? Would any new test fail without the change?
    A test that asserts on a mock, on a message string, or on a name is a real finding.
@@ -372,6 +399,12 @@ Release-configured. From inside the review worktree:
 export PR_EVIDENCE_DIR="<scratchpad>/evidence-pr-<id>"
 ~/.claude/scripts/pr-test-evidence.sh run pr<id>-review-full
 ```
+
+`pr-test-evidence.sh` builds `UTIE.GenAI.sln` and exits 2 anywhere else. For a PR in another
+repo, run that repo's own build and test the way its README, `AGENTS.md` or pipeline definition
+says to, and write the command, its exit code and its counts into `$PR_EVIDENCE_DIR` yourself —
+the evidence rule does not relax, only the script does. If the repo cannot be built here at all,
+say that in the report and post nothing that claims a reproduction.
 
 - A red suite on the author's own branch is itself a `[P1]` finding, and it is one you can prove
   — quote `pr-test-evidence.sh summary`, never numbers from scrollback.

@@ -27,7 +27,9 @@
 #   ado-pr.sh audit <pr> [--json]                every thread + a verdict per thread
 #   ado-pr.sh policy-status <pr>                 Azure DevOps' own build/comment verdicts
 #
-# Override the target with ADO_ORG / ADO_PROJECT / ADO_REPO if needed.
+# ADO_PROJECT / ADO_REPO are only the fallback target, and where my own PRs
+# live: every subcommand taking a <pr> repoints at whichever repository that PR
+# lives in. Override the org with ADO_ORG if needed.
 # ADO_PR_DRY_RUN=1        reply/resolve print what they would send and write nothing.
 # ADO_PR_ALLOW_DECLINE=1  required for the wontFix / byDesign / closed statuses.
 #
@@ -41,8 +43,13 @@ REPO="${ADO_REPO:-UTIE-2.0}"
 
 # Well-known Azure DevOps resource id; `az rest` needs it to mint the right token.
 ADO_RESOURCE=499b84ac-1321-427f-aa17-267ca6975798
-BASE="https://dev.azure.com/${ORG}/${PROJECT}/_apis/git/repositories/${REPO}"
 API="api-version=7.1"
+
+# The fallback target, and where my own PRs live. Every subcommand that takes a
+# PR id repoints these at that PR's repository -- threads I read as a reviewer
+# are on other people's PRs, which are not all in this repo.
+BASE="https://dev.azure.com/${ORG}/${PROJECT}/_apis/git/repositories/${REPO}"
+PR_PROJECT="$PROJECT"
 
 # Python 3.11 rejects a backslash inside an f-string expression, so the embedded
 # snippets below use %-formatting rather than f"{d[\"key\"]}".
@@ -65,6 +72,28 @@ req() { # req METHOD URL [BODY]
 whoami_id() {
     req GET "https://dev.azure.com/${ORG}/_apis/connectionData?api-version=7.1-preview" \
         | python3 -c 'import sys,json; print(json.load(sys.stdin)["authenticatedUser"]["id"])'
+}
+
+# A bare PR id says nothing about which repository to call, and only the
+# org-level lookup can resolve one. A PR never moves, so the answer is cached.
+set_base_for_pr() {
+    local pr=$1 proj="" repo=""
+    local dir="${XDG_CACHE_HOME:-$HOME/.cache}/ado-cli"
+    local cached="${dir}/pr-${ORG}-${pr}"
+    if [[ -r $cached ]]; then
+        IFS=' ' read -r proj repo < "$cached" || true
+    fi
+    if [[ -z $proj || -z $repo ]]; then
+        IFS=' ' read -r proj repo < <(
+            req GET "https://dev.azure.com/${ORG}/_apis/git/pullrequests/${pr}?${API}" \
+                | python3 -c 'import sys,json
+r = json.load(sys.stdin)["repository"]
+print(r["project"]["id"], r["id"])') || true
+        [[ -n $proj && -n $repo ]] || die "could not resolve the repository PR ${pr} lives in"
+        mkdir -p "$dir" && printf '%s %s\n' "$proj" "$repo" > "$cached"
+    fi
+    PR_PROJECT=$proj
+    BASE="https://dev.azure.com/${ORG}/${proj}/_apis/git/repositories/${repo}"
 }
 
 cmd_whoami() {
@@ -468,12 +497,10 @@ sys.exit(1)' "${p#/}" <<<"$changed" >/dev/null; then
 # only exist under the -preview api-version.
 cmd_policy_status() {
     local pr=${1:?pr id required}
-    local proj_id
-    proj_id=$(req GET "https://dev.azure.com/${ORG}/_apis/projects/${PROJECT}?api-version=7.1" \
-        | python3 -c 'import sys,json; print(json.load(sys.stdin)["id"])')
-    [[ -n $proj_id ]] || die "could not resolve project id for ${PROJECT}"
+    local proj_id=$PR_PROJECT
+    [[ -n $proj_id ]] || die "could not resolve the project PR ${pr} lives in"
 
-    req GET "https://dev.azure.com/${ORG}/${PROJECT}/_apis/policy/evaluations?artifactId=vstfs:///CodeReview/CodeReviewId/${proj_id}/${pr}&api-version=7.1-preview" \
+    req GET "https://dev.azure.com/${ORG}/${proj_id}/_apis/policy/evaluations?artifactId=vstfs:///CodeReview/CodeReviewId/${proj_id}/${pr}&api-version=7.1-preview" \
         | python3 -c '
 import sys, json
 evals = json.load(sys.stdin).get("value", [])
@@ -559,6 +586,13 @@ print()
 print("%d threads; %d resolved; %d need attention" % (len(rows), resolved_n, needs_attention))
 sys.exit(1 if needs_attention else 0)'
 }
+
+# Every subcommand below that takes a <pr> is repo-scoped, so the repository has
+# to be resolved before it runs, not inside each one.
+case ${1:-} in
+    info|threads|thread|reply|resolve|reply-and-resolve|replied|thread-status|policy-status|audit)
+        set_base_for_pr "${2:?pr id required}" ;;
+esac
 
 case ${1:-} in
     my-prs)        shift; cmd_my_prs "$@" ;;
